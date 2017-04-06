@@ -1,3 +1,4 @@
+%add show normals function
 function BATS
     home = figure('Position', [300,400,800,800], 'Name', 'Beacon Attraction Trajectory Simulation', 'NumberTitle', 'off', 'menubar', 'none', 'Color', 'w'); %Visible off while adding components, Size of window, Name of figure, Turn off the figure number
     logo = imread('BATSLogo.png');
@@ -13,6 +14,8 @@ function BATS
     changeBeacon = 0;
     changeStart = 0;
     createPolygon = 0;
+    showNorm = 0;
+    diffArea = 0;
 
     function mainFigure(~, ~)
         delete(enter)
@@ -26,12 +29,15 @@ function BATS
         changeBeacon = uicontrol('Style', 'pushbutton', 'String', 'Change Beacon', 'Position', [24 460 120 30], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'Callback', @setBeacon, 'Enable', 'off'); 
         changeStart = uicontrol('Style', 'pushbutton', 'String', 'Change Start Point', 'Position', [24 400 120 30], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'Callback', @setStart, 'Enable', 'off'); 
         createPolygon = uicontrol('Style', 'pushbutton', 'String', 'Create Polygon', 'Position', [24 350 120 30], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'Callback', @newPolygon, 'Enable', 'on'); 
+        showNorm = uicontrol('Style', 'radiobutton', 'String', 'Show Normals', 'Position', [600 620 100 20], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [1, 1, 1], 'Callback', @showNormals, 'Enable', 'on');
         uicontrol('Style', 'pushbutton', 'String', 'Reset!', 'Position', [610 35 110 40], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 20, 'BackgroundColor', [0.95, 0.95, 1], 'FontWeight', 'bold', 'Callback', @resetSim); 
         uicontrol('Style', 'pushbutton', 'String', 'Home', 'Position', [190 35 110 40], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 20, 'BackgroundColor', [0.95, 0.95, 1], 'FontWeight', 'bold', 'Callback', @backHome);
         set(gca, 'xtickLabel', [], 'ytickLabel', [], 'xtick', [], 'ytick', []);
         axis([0 10 0 10]);
     end
     G = 0;
+    normalX = 0;
+    normalY = 0;
     stopCreate = 0;
     pointNode = 1;
     beaconNode = 2;
@@ -56,9 +62,19 @@ function BATS
     polygonSource = 0;
     editStart = 0;
     editBeacon = 0;
+    diff = 0;
     
     function changePolygon(source,~)
         set(createPolygon, 'Enable', 'on');
+        set(startButton, 'Enable', 'off');
+        set(algorithmButton, 'Enable', 'off');
+        set(changeBeacon, 'Enable', 'off');
+        set(changeStart, 'Enable', 'off');
+        set(showNorm, 'Enable', 'on');
+        if diff ~= 0
+            delete(diffArea);
+        end
+        uicontrol('Style', 'text', 'String', 'DISTANCE TO BEACON:', 'Position', [10 120 140 120], 'Foreground', [0.1, 0.4, 1], 'FontSize', 12, 'BackgroundColor', [0.9 0.9 0.9]);
         polygonSource = source;
         % Determine the selected data set.
         str = get(polygonSource, 'String');
@@ -66,14 +82,11 @@ function BATS
         % Set current data to the selected data set.
         switch str{val};
             case 'Polygon1' %create the first polygon
-                set(startButton, 'Enable', 'off');
-                set(algorithmButton, 'Enable', 'off');
-                set(changeBeacon, 'Enable', 'off');
-                set(changeStart, 'Enable', 'off');
                 cla reset;
                 clearvars -global;
                 G = 0;
                 endPoint = [-1 -1];
+                count = 1;
                 lengthBATPath = 0;
                 stopPoint = [-1 -1];
                 nLabel = {};
@@ -224,7 +237,7 @@ function BATS
                         if (x_inter(i) > min(line2x)) && (x_inter(i) < max(line2x)) && (y_inter(i) > min(line2y)) && (y_inter(i) < max(line2y))
                             distanceToStart = sqrt((x_inter(i) - startPoint(1))^2+(y_inter(i) - startPoint(2))^2);
                             distanceToBeacon = sqrt((x_inter(i) - beacon(1))^2+(y_inter(i) - beacon(2))^2);
-                            if (distanceToStart < closestDist) && (distanceToBeacon < distanceStartToBeacon)
+                            if (distanceToStart < closestDist) && (distanceToBeacon < distanceStartToBeacon) && inpolygon(x_inter(i), y_inter(i), line1x, line1y)
                                 closestLine = i;
                                 closestDist = distanceToStart;
                             end
@@ -240,7 +253,7 @@ function BATS
                     end
                     if closestLine == 100000 %no intersection found inside the polygon 
                         startPoint = beacon;
-                    elseif inpolygon(x_inter(closestLine), y_inter(closestLine), line1x, line1y) && (x_inter(closestLine) > min(lineInterx)) && (x_inter(closestLine) < max(lineInterx)) && (y_inter(closestLine) > min(lineIntery)) && (y_inter(closestLine) < max(lineIntery)) %proper intersection
+                     elseif inpolygon(x_inter(closestLine), y_inter(closestLine), line1x, line1y) && (x_inter(closestLine) > min(lineInterx)) && (x_inter(closestLine) < max(lineInterx)) && (y_inter(closestLine) > min(lineIntery)) && (y_inter(closestLine) < max(lineIntery)) %proper intersection
                         pathTempX(pathPosition) = x_inter(closestLine);
                         pathTempY(pathPosition) = y_inter(closestLine);
                         pathPosition = pathPosition + 1;
@@ -255,24 +268,29 @@ function BATS
                         %calculate intersection of perpendicular line and intersecting line
                         perFit1 = polyfit(perpenLinex, perpenLiney, 1);
                         perFit2 = polyfit(lineInterx, lineIntery, 1);
-                        normalX = round(fzero(@(x) polyval(perFit1-perFit2, x), 3, options), 14);
-                        normalY = round(polyval(perFit1, normalX), 14);
-                        plot(normalX, normalY, 'ro'); hold on;
-                        if (normalX > min(lineInterx)) && (normalX < max(lineInterx)) && (normalY > min(lineIntery)) && (normalY < max(lineIntery))
+                        normalX(count) = round(fzero(@(x) polyval(perFit1-perFit2, x), 3, options), 14);
+                        normalY(count) = round(polyval(perFit1, normalX(count)), 14);
+                        midPointX = (x_inter(closestLine) + startPoint(1)) / 2;
+                        midPointY = (y_inter(closestLine) + startPoint(2)) / 2;
+                        if inpolygon(midPointX, midPointY, px, py) == 0
+                            pathTempX(pathPosition-1) = 0;
+                            pathTempY(pathPosition-1) = 0;
+                            endPoint = [startPoint(1) startPoint(2)];
                             startPoint = beacon;
-                            endPoint = [normalX normalY];
-                        elseif inpolygon(normalX, normalY, px, py) == 0
-                            distNorm1 = sqrt((lineInterx(1) - normalX)^2+(lineIntery(1) - normalY)^2);
-                            distNorm2 = sqrt((lineInterx(2) - normalX)^2+(lineIntery(2) - normalY)^2);
+                        elseif (normalX(count) > min(lineInterx)) && (normalX(count) < max(lineInterx)) && (normalY(count) > min(lineIntery)) && (normalY(count) < max(lineIntery))
                             startPoint = beacon;
+                            endPoint = [normalX(count) normalY(count)];
+                        elseif inpolygon(normalX(count), normalY(count), px, py) == 0
+                            distNorm1 = sqrt((lineInterx(1) - normalX(count))^2+(lineIntery(1) - normalY(count))^2);
+                            distNorm2 = sqrt((lineInterx(2) - normalX(count))^2+(lineIntery(2) - normalY(count))^2);
                             if distNorm1 < distNorm2
-                                endPoint = [px(closestLine) py(closestLine)];
+                                startPoint = [px(closestLine) py(closestLine)];
                             else
-                                endPoint = [px(closestLine+1) py(closestLine+1)];
+                                startPoint = [px(closestLine+1) py(closestLine+1)];
                             end
                         else
-                            distNorm1 = sqrt((lineInterx(1) - normalX)^2+(lineIntery(1) - normalY)^2);
-                            distNorm2 = sqrt((lineInterx(2) - normalX)^2+(lineIntery(2) - normalY)^2);
+                            distNorm1 = sqrt((lineInterx(1) - normalX(count))^2+(lineIntery(1) - normalY(count))^2);
+                            distNorm2 = sqrt((lineInterx(2) - normalX(count))^2+(lineIntery(2) - normalY(count))^2);
                             if distNorm1 > distNorm2
                                 startPoint = [lineInterx(2) lineIntery(2)];
                                 endPoint = beacon;
@@ -281,7 +299,7 @@ function BATS
                                 endPoint = beacon;
                             else
                                 startPoint = beacon;
-                                endPoint = [normalX normalY];
+                                endPoint = [normalX(count) normalY(count)];
                             end
                         end
                     else
@@ -293,6 +311,7 @@ function BATS
                             endPoint = beacon;
                         end
                     end
+                    count = count + 1;
                 end
                 pathTempX(numNodes*2) = endPoint(1);
                 pathTempY(numNodes*2) = endPoint(2);
@@ -329,20 +348,16 @@ function BATS
                 set(gca, 'xtickLabel', [], 'ytickLabel', [], 'xtick', [], 'ytick', [], 'Color', [0.95, 0.95, 1]);
                 set(changeBeacon, 'Enable', 'on');
                 set(changeStart, 'Enable', 'on');
-                set(startButton, 'Enable', 'on');
                 editStart = 0;
                 editBeacon = 0;
                 algorithmButton = uicontrol('Style', 'popup', 'String', {'Choose an Algorithm', 'B.A.T.', 'S.P.', 'Create Path', 'All Paths'}, 'Position',[20 490 130 50], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'HandleVisibility','off', 'Callback', @findPath, 'Enable', 'on');
                 
             case 'Polygon2' %create the second polygon
-                set(startButton, 'Enable', 'off');
-                set(algorithmButton, 'Enable', 'off');
-                set(changeBeacon, 'Enable', 'off');
-                set(changeStart, 'Enable', 'off');
                 cla reset;
                 clearvars -global;
                 G = 0;
                 endPoint = [-1 -1];
+                count = 1;
                 stopPoint = [-1 -1];
                 lengthBATPath = 0;
                 lastLineX = [0 0];
@@ -493,7 +508,7 @@ function BATS
                         if (x_inter(i) > min(line2x)) && (x_inter(i) < max(line2x)) && (y_inter(i) > min(line2y)) && (y_inter(i) < max(line2y))
                             distanceToStart = sqrt((x_inter(i) - startPoint(1))^2+(y_inter(i) - startPoint(2))^2);
                             distanceToBeacon = sqrt((x_inter(i) - beacon(1))^2+(y_inter(i) - beacon(2))^2);
-                            if (distanceToStart < closestDist) && (distanceToBeacon < distanceStartToBeacon)
+                            if (distanceToStart < closestDist) && (distanceToBeacon < distanceStartToBeacon) && inpolygon(x_inter(i), y_inter(i), line1x, line1y)
                                 closestLine = i;
                                 closestDist = distanceToStart;
                             end
@@ -524,24 +539,29 @@ function BATS
                         %calculate intersection of perpendicular line and intersecting line
                         perFit1 = polyfit(perpenLinex, perpenLiney, 1);
                         perFit2 = polyfit(lineInterx, lineIntery, 1);
-                        normalX = round(fzero(@(x) polyval(perFit1-perFit2, x), 3, options), 14);
-                        normalY = round(polyval(perFit1, normalX), 14);
-                        plot(normalX, normalY, 'ro'); hold on;
-                        if (normalX > min(lineInterx)) && (normalX < max(lineInterx)) && (normalY > min(lineIntery)) && (normalY < max(lineIntery)) 
+                        normalX(count) = round(fzero(@(x) polyval(perFit1-perFit2, x), 3, options), 14);
+                        normalY(count) = round(polyval(perFit1, normalX(count)), 14);
+                        midPointX = (x_inter(closestLine) + startPoint(1)) / 2;
+                        midPointY = (y_inter(closestLine) + startPoint(2)) / 2;
+                        if inpolygon(midPointX, midPointY, px, py) == 0
+                            pathTempX(pathPosition-1) = 0;
+                            pathTempY(pathPosition-1) = 0;
+                            endPoint = [startPoint(1) startPoint(2)];
                             startPoint = beacon;
-                            endPoint = [normalX normalY];
-                        elseif inpolygon(normalX, normalY, px, py) == 0
-                            distNorm1 = sqrt((lineInterx(1) - normalX)^2+(lineIntery(1) - normalY)^2);
-                            distNorm2 = sqrt((lineInterx(2) - normalX)^2+(lineIntery(2) - normalY)^2);
+                        elseif (normalX(count) >= min(lineInterx)) && (normalX(count) <= max(lineInterx)) && (normalY(count) >= min(lineIntery)) && (normalY(count) <= max(lineIntery))
                             startPoint = beacon;
+                            endPoint = [normalX(count) normalY(count)];
+                        elseif inpolygon(normalX(count), normalY(count), px, py) == 0
+                            distNorm1 = sqrt((lineInterx(1) - normalX(count))^2+(lineIntery(1) - normalY(count))^2);
+                            distNorm2 = sqrt((lineInterx(2) - normalX(count))^2+(lineIntery(2) - normalY(count))^2);
                             if distNorm1 < distNorm2
-                                endPoint = [px(closestLine) py(closestLine)];
+                                startPoint = [px(closestLine) py(closestLine)];
                             else
-                                endPoint = [px(closestLine+1) py(closestLine+1)];
+                                startPoint = [px(closestLine+1) py(closestLine+1)];
                             end
                         else
-                            distNorm1 = sqrt((lineInterx(1) - normalX)^2+(lineIntery(1) - normalY)^2);
-                            distNorm2 = sqrt((lineInterx(2) - normalX)^2+(lineIntery(2) - normalY)^2);
+                            distNorm1 = sqrt((lineInterx(1) - normalX(count))^2+(lineIntery(1) - normalY(count))^2);
+                            distNorm2 = sqrt((lineInterx(2) - normalX(count))^2+(lineIntery(2) - normalY(count))^2);
                             if distNorm1 > distNorm2
                                 startPoint = [lineInterx(2) lineIntery(2)];
                                 endPoint = beacon;
@@ -550,7 +570,7 @@ function BATS
                                 endPoint = beacon;
                             else
                                 startPoint = beacon;
-                                endPoint = [normalX normalY];
+                                endPoint = [normalX(count) normalY(count)];
                             end
                         end
                     else
@@ -562,6 +582,7 @@ function BATS
                             endPoint = beacon;
                         end
                     end
+                    count = count + 1;
                 end
                 pathTempX(numNodes*2) = endPoint(1);
                 pathTempY(numNodes*2) = endPoint(2);
@@ -597,22 +618,18 @@ function BATS
                 highlight(p, beaconNode, 'NodeColor', 'c', 'MarkerSize', 13);
                 set(changeBeacon, 'Enable', 'on');
                 set(changeStart, 'Enable', 'on');
-                set(startButton, 'Enable', 'on');
                 editStart = 0;
                 editBeacon = 0;
                 set(gca, 'xtickLabel', [], 'ytickLabel', [], 'xtick', [], 'ytick', [], 'Color', [0.95, 0.95, 1]);
                 algorithmButton = uicontrol('Style', 'popup', 'String', {'Choose an Algorithm', 'B.A.T.', 'S.P.', 'Create Path', 'All Paths'}, 'Position',[20 490 130 50], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'HandleVisibility','off', 'Callback', @findPath, 'Enable', 'on');
                 
             case 'Polygon3' %create the third polygon
-                set(startButton, 'Enable', 'off');
-                set(algorithmButton, 'Enable', 'off');
-                set(changeBeacon, 'Enable', 'off');
-                set(changeStart, 'Enable', 'off');
                 cla reset;
                 clearvars -global;
                 G = 0;
                 stopPoint = [-1 -1];
                 endPoint = [-1 -1];
+                count = 1;
                 lengthBATPath = 0;
                 lastLineX = [0 0];
                 lastLineY = [0 0];
@@ -762,7 +779,7 @@ function BATS
                         if (x_inter(i) > min(line2x)) && (x_inter(i) < max(line2x)) && (y_inter(i) > min(line2y)) && (y_inter(i) < max(line2y))
                             distanceToStart = sqrt((x_inter(i) - startPoint(1))^2+(y_inter(i) - startPoint(2))^2);
                             distanceToBeacon = sqrt((x_inter(i) - beacon(1))^2+(y_inter(i) - beacon(2))^2);
-                            if (distanceToStart < closestDist) && (distanceToBeacon < distanceStartToBeacon)
+                            if (distanceToStart < closestDist) && (distanceToBeacon < distanceStartToBeacon) && inpolygon(x_inter(i), y_inter(i), line1x, line1y)
                                 closestLine = i;
                                 closestDist = distanceToStart;
                             end
@@ -793,23 +810,29 @@ function BATS
                         %calculate intersection of perpendicular line and intersecting line
                         perFit1 = polyfit(perpenLinex, perpenLiney, 1);
                         perFit2 = polyfit(lineInterx, lineIntery, 1);
-                        normalX = round(fzero(@(x) polyval(perFit1-perFit2, x), 3, options), 14);
-                        normalY = round(polyval(perFit1, normalX), 14);
-                        if (normalX > min(lineInterx)) && (normalX < max(lineInterx)) && (normalY > min(lineIntery)) && (normalY < max(lineIntery))
+                        normalX(count) = round(fzero(@(x) polyval(perFit1-perFit2, x), 3, options), 14);
+                        normalY(count) = round(polyval(perFit1, normalX(count)), 14);
+                        midPointX = (x_inter(closestLine) + startPoint(1)) / 2;
+                        midPointY = (y_inter(closestLine) + startPoint(2)) / 2;
+                        if inpolygon(midPointX, midPointY, px, py) == 0
+                            pathTempX(pathPosition-1) = 0;
+                            pathTempY(pathPosition-1) = 0;
+                            endPoint = [startPoint(1) startPoint(2)];
                             startPoint = beacon;
-                            endPoint = [normalX normalY];
-                        elseif inpolygon(normalX, normalY, px, py) == 0
-                            distNorm1 = sqrt((lineInterx(1) - normalX)^2+(lineIntery(1) - normalY)^2);
-                            distNorm2 = sqrt((lineInterx(2) - normalX)^2+(lineIntery(2) - normalY)^2);
+                        elseif (normalX(count) > min(lineInterx)) && (normalX(count) < max(lineInterx)) && (normalY(count) > min(lineIntery)) && (normalY(count) < max(lineIntery))
                             startPoint = beacon;
+                            endPoint = [normalX(count) normalY(count)];
+                        elseif inpolygon(normalX(count), normalY(count), px, py) == 0
+                            distNorm1 = sqrt((lineInterx(1) - normalX(count))^2+(lineIntery(1) - normalY(count))^2);
+                            distNorm2 = sqrt((lineInterx(2) - normalX(count))^2+(lineIntery(2) - normalY(count))^2);
                             if distNorm1 < distNorm2
-                                endPoint = [px(closestLine) py(closestLine)];
+                                startPoint = [px(closestLine) py(closestLine)];
                             else
-                                endPoint = [px(closestLine+1) py(closestLine+1)];
+                                startPoint = [px(closestLine+1) py(closestLine+1)];
                             end
                         else
-                            distNorm1 = sqrt((lineInterx(1) - normalX)^2+(lineIntery(1) - normalY)^2);
-                            distNorm2 = sqrt((lineInterx(2) - normalX)^2+(lineIntery(2) - normalY)^2);
+                            distNorm1 = sqrt((lineInterx(1) - normalX(count))^2+(lineIntery(1) - normalY(count))^2);
+                            distNorm2 = sqrt((lineInterx(2) - normalX(count))^2+(lineIntery(2) - normalY(count))^2);
                             if distNorm1 > distNorm2
                                 startPoint = [lineInterx(2) lineIntery(2)];
                                 endPoint = beacon;
@@ -818,7 +841,7 @@ function BATS
                                 endPoint = beacon;
                             else
                                 startPoint = beacon;
-                                endPoint = [normalX normalY];
+                                endPoint = [normalX(count) normalY(count)];
                             end
                         end
                     else
@@ -830,6 +853,7 @@ function BATS
                             endPoint = beacon;
                         end
                     end
+                    count = count + 1;
                 end
                 pathTempX(numNodes*2) = endPoint(1);
                 pathTempY(numNodes*2) = endPoint(2);
@@ -865,7 +889,6 @@ function BATS
                 highlight(p, beaconNode, 'NodeColor', 'c', 'MarkerSize', 13);
                 set(changeBeacon, 'Enable', 'on');
                 set(changeStart, 'Enable', 'on');
-                set(startButton, 'Enable', 'on');
                 editStart = 0;
                 editBeacon = 0;
                 set(gca, 'xtickLabel', [], 'ytickLabel', [], 'xtick', [], 'ytick', [], 'Color', [0.95, 0.95, 1]);
@@ -876,7 +899,13 @@ function BATS
     function findPath(source, ~)
         set(changeBeacon, 'Enable', 'off');
         set(changeStart, 'Enable', 'off');
+        set(showNorm, 'Enable', 'off');
+        if diff ~= 0
+            delete(diffArea);
+        end
         lengthSPPath = 0;
+        normalX = 0;
+        normalY = 0;
         createPath = 0;
         countCreatePath = 1;
         lengthCreatePath = 0;
@@ -935,9 +964,14 @@ function BATS
         delete(changeBeacon);
         delete(changeStart);
         delete(createPolygon);
+        delete(showNorm);
         cla reset;
         clearvars -global;
+        if diff ~= 0
+            delete(diffArea);
+        end
         px = 0;
+        diff = 0;
         py = 0;
         G = 0;
         editStart = 0;
@@ -957,7 +991,8 @@ function BATS
         lengthSPPath = 0;
         currX = -1;
         currY = -1;
-        createPolygon = uicontrol('Style', 'pushbutton', 'String', 'Create Polygon', 'Position', [24 350 120 30], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'Callback', @createPolygon, 'Enable', 'on'); 
+        showNorm = uicontrol('Style', 'radiobutton', 'String', 'Show Normals', 'Position', [600 620 100 20], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [1, 1, 1], 'Callback', @showNormals, 'Enable', 'off');
+        createPolygon = uicontrol('Style', 'pushbutton', 'String', 'Create Polygon', 'Position', [24 350 120 30], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'Callback', @newPolygon, 'Enable', 'on'); 
         changeBeacon = uicontrol('Style', 'pushbutton', 'String', 'Change Beacon', 'Position', [24 460 120 30], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'Callback', @setBeacon, 'Enable', 'off'); 
         changeStart = uicontrol('Style', 'pushbutton', 'String', 'Change Start Point', 'Position', [24 400 120 30], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'Callback', @setStart, 'Enable', 'off'); 
         algorithmButton = uicontrol('Style', 'popup', 'String', {'Choose an Algorithm', 'B.A.T.', 'S.P.', 'Create Path', 'All Paths'}, 'Position',[20 490 130 50], 'ForegroundColor', [0.1, 0.4, 1], 'FontSize', 11, 'BackgroundColor', [0.95, 0.95, 1], 'HandleVisibility','off', 'Enable', 'off');
@@ -1036,12 +1071,20 @@ function BATS
             str1 = ['S.P. TO BEACON: ', num2str(lengthSPPath)];
             str2 = ['B.A.T. TO BEACON: ', num2str(lengthBATPath)];
             str3 = ['PATH TO BEACON: ', num2str(lengthCreatePath)];
+            diff = lengthBATPath - lengthSPPath;
+            strDiff = ['Difference Between B.A.T. and S.P. : ', num2str(diff)];
             uicontrol('Style', 'text', 'String', str1, 'Position', [10 120 140 120], 'Foreground', [1 0.5 0], 'FontSize', 13, 'BackgroundColor', [0.9 0.9 0.9]);
             uicontrol('Style', 'text', 'String', str2, 'Position', [10 120 140 80], 'Foreground', [0.1, 0.4, 1], 'FontSize', 13, 'BackgroundColor', [0.9 0.9 0.9]);
             uicontrol('Style', 'text', 'String', str3, 'Position', [10 120 140 40], 'Foreground', [0.1, 1, 0.4], 'FontSize', 13, 'BackgroundColor', [0.9 0.9 0.9]);
+            if diff < sqrt(2) && diff >= 0
+                diffArea = uicontrol('Style', 'text', 'String', strDiff, 'Position', [10 260 140 70], 'Foreground', 'm', 'FontSize', 13, 'BackgroundColor', [1 1 1]);
+            elseif diff >= 0
+                diffArea = uicontrol('Style', 'text', 'String', strDiff, 'Position', [10 260 140 70], 'Foreground', 'r', 'FontSize', 13, 'BackgroundColor', [1 1 1]);
+            end
             highlight(p, pointNode, 'NodeColor', 'y', 'MarkerSize', 10);
             highlight(p, beaconNode, 'NodeColor', 'y', 'MarkerSize', 13);
         end
+        set(startButton, 'Enable', 'off');
     end
 
     function backHome(~, ~)
@@ -1096,7 +1139,7 @@ function BATS
     end
     function setStart(~, ~)
         [x, y] = ginput(1);
-        if inpolygon(x, y, px, py)
+        if inpolygon(x, y, px(3:numNodes), py(3:numNodes))
             px(pointNode) = x;
             py(pointNode) = y;
             editStart = 1;
@@ -1109,7 +1152,7 @@ function BATS
 
     function setBeacon(~, ~)
         [x, y] = ginput(1);
-        if inpolygon(x, y, px, py)
+        if inpolygon(x, y, px(3:numNodes), py(3:numNodes))
             px(beaconNode) = x;
             py(beaconNode) = y;
             editBeacon = 1;
@@ -1122,5 +1165,17 @@ function BATS
 
     function newPolygon(src, ~)
         
+    end
+
+    function showNormals(src, ~)
+        if src.Value == 1
+            for i = 1 : length(normalX)
+                plot(normalX(i), normalY(i), 'ro'); hold on;
+            end
+        else
+            for i = 1 : length(normalX)
+                plot(normalX(i), normalY(i), 'wo'); hold on;
+            end
+        end
     end
 end
