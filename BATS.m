@@ -1,4 +1,4 @@
-%add show normals function
+%show ratio not difference
 function BATS
     home = figure('Position', [300,400,800,800], 'Name', 'Beacon Attraction Trajectory Simulation', 'NumberTitle', 'off', 'menubar', 'none', 'Color', 'w'); %Visible off while adding components, Size of window, Name of figure, Turn off the figure number
     logo = imread('BATSLogo.png');
